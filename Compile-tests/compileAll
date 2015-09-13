@@ -1,0 +1,79 @@
+#!/bin/bash
+curDir="$(dirname "$(readlink -f "$0")" )"
+source $curDir/compileGlobals
+
+
+create_clear() {
+mkdir $1 2> /dev/null
+rm $1/* 2> /dev/null
+}
+mkdir $www 2> /dev/null
+create_clear $results
+
+refresh=false
+if [ "$1" == "rebuild" ]; then
+	refresh=true
+	rm $www/* 2> /dev/null
+	echo "Forced refreshing"
+fi
+
+
+mkdir implementierung 2> /dev/null
+pushd implementierung > /dev/null
+
+git pull >/dev/null
+
+#branches=$(git branch -r | sed 's/^.*\*.*$//g' | sed 's/->.*//g')
+branches=$(git for-each-ref --sort=-committerdate --format '%(refname:short)' --count=12 | grep origin | grep -v HEAD)
+
+counter=0
+
+for branch in $branches; do
+	branchname=$(echo $branch | sed 's/origin\///g')
+	mkdir $branchname 2>/dev/null
+	pushd $branchname >/dev/null
+	#refresh=true
+
+	#Git initalized?
+	gitFind=`find -maxdepth 1 -name ".git"`
+	if [[ -z $gitFind ]] ; then
+	 popd >/dev/null #branchname
+	 rm -r $branchname 2>/dev/null
+	 git clone ssh://git@phabricator.v22014112397821332.yourvserver.net/diffusion/I/implementierung.git $branchname
+	 pushd $branchname >/dev/null
+	 refresh=true
+	fi
+
+	#reset
+	git checkout .
+	echo ""
+	echo "---"
+	echo $branchname
+	#git checkout -b $branchname $branch >/dev/null
+	git checkout $branchname
+	echo "---"
+	echo ""
+
+	#HEAD shouldn't be a branch
+	hasHEAD=$(git branch | grep HEAD)
+	if [[ -n $hasHEAD ]]; then
+		echo "Deleting branch HEAD"
+		git branch -D HEAD
+	fi
+
+	#reset again
+	git reset --hard >/dev/null
+	res=$(git pull origin $branchname)
+	echo $res
+	if [ "$res" != "Already up-to-date." ] || [ "$refresh" == true ]; then
+		cp $curDir/compile compile
+		chmod +x compile
+		cp $curDir/compileGlobals compileGlobals
+		chmod +x compileGlobals
+		echo "Num: $counter"
+		bash compile "$counter-$branchname"
+	fi
+	popd >/dev/null #$branchname
+
+	((counter++))
+done

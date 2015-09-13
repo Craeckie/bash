@@ -1,0 +1,7 @@
+#!/bin/bash
+
+echo "Setting globals"
+base="/var/impl"
+results="$base/results"
+www="/var/www/html/results"
+

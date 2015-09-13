@@ -1,0 +1,63 @@
+#!/bin/bash
+curDir="$(dirname "$(readlink -f "$0")" )"
+source $curDir/compileGlobals
+if [ $? -ne 0 ]; then
+	echo "compileGlobals not found!"
+	exit 1
+fi
+
+branchname=$1
+if [ -z "$1" ]; then
+	echo "$0"
+	#path="$(dirname "$(readlink -f "$0")" )"
+	branchname="$(basename "$curDir")"
+fi
+
+echo "Branch: $branchname"
+
+
+runningLock="$www/running"
+if ! [ -f $runningLock ]; then
+	echo "STOPPED" > $runningLock;
+	echo "Lock not found, creating."
+fi
+lockContent=`cat "$runningLock"`
+if [ "$lockContent" == "STOPPED" ]; then
+	echo "$branchname" > "$runningLock"
+else
+	echo "Compilation already running!"
+	exit 0
+fi
+
+mkdir build 2> /dev/null
+pushd build > /dev/null
+rm -r * 2> /dev/null
+
+qmake -Wnone ../cote/cote.pro -r -spec linux-g++ CONFIG+=warn_off
+
+buildlog=$results/build-$branchname.txt
+date > $buildlog
+res=$((time make -r -w >/dev/null) 2>&1)
+if [ $? -eq 0 ]; then
+	echo "Successful!" | tee -a $buildlog
+else
+	echo "Make exited with status $?" | tee -a $buildlog
+fi
+echo $res | tee -a $buildlog
+cp $buildlog $www/build-$branchname.txt
+
+testlog=$results/test-$branchname.txt
+date > $testlog
+
+pushd test >/dev/null
+if [ $? -eq 0 ]; then
+	LD_LIBRARY_PATH=$PWD
+	(time ./test 2>&1) | tee -a $testlog
+	popd >/dev/null #test
+else
+	echo "No tests available" | tee -a $testlog
+fi
+cp $testlog $www/test-$branchname.txt
+popd >/dev/null #build
+
+echo "STOPPED" > "$runningLock"
