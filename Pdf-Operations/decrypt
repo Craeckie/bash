@@ -1,0 +1,2 @@
+#!/bin/bash
+qpdf --password=IBUSS2016 --decrypt "$1" "$1.tmp" && mv -v "$1.tmp" "$1"

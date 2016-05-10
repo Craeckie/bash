@@ -1,0 +1,18 @@
+#!/bin/bash
+#if [ -n "$3" ]; then
+#  p="$3"
+#else
+  p="2-"
+#fi
+angle="$1"
+shift
+for f in "$@"; do
+echo "Processing $f.. "
+destDir="rotated"
+tmp1="$destDir/${f}_1.pdf"
+tmp2="$destDir/${f}_2.pdf"
+pdfjam -o "$tmp1" "$f" 1
+pdf$angle -o "$tmp2" "$f" "$p"
+pdfjam -o "$destDir/$f" "$tmp1" "$tmp2"
+rm "$tmp1" "$tmp2"
+done

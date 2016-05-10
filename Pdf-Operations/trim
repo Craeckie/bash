@@ -1,0 +1,1 @@
+for f in Basisliteratur_\ Kap*.pdf; do convert -verbose -density 200 -depth 8 "$f" -colorspace rgb -trim +repage "trimmed/$f"; done
